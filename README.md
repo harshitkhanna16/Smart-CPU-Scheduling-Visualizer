@@ -36,16 +36,6 @@ The system displays results in tabular form and provides average waiting and tur
   
 ---
 
-## How to Run
-
-1. Clone this repository  
-   ```bash
-   git clone https://github.com/<your-username>/Smart-CPU-Scheduling-Visualizer.git
-2. Open the folder in VS Code or any code editor
-3. Open the index.html file in a browser to run the project
-
----
-
 ## Algorithms
 
 Algorithm	Description
