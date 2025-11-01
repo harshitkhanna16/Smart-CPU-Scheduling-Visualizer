@@ -1,0 +1,351 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart CPU Scheduling Visualizer</title>
+  <style>
+    :root {
+      --primary: #0077b6;
+      --secondary: #00ff7f;
+      --bg-dark: #0a0f1f;
+      --card: #121b2f;
+      --text: #f8f9fa;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: radial-gradient(circle at top, var(--bg-dark) 0%, #000 100%);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      padding: 1rem;
+      background: var(--card);
+      box-shadow: 0 0 20px rgba(0,255,127,0.2);
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      color: var(--secondary);
+      letter-spacing: 1px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 2rem auto;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 0 20px rgba(0,255,127,0.1);
+    }
+
+    .inputs {
+      display: grid;
+      gap: 1rem;
+    }
+
+    input, select, button {
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input, select {
+      width: 100%;
+      background: var(--card);
+      color: var(--text);
+    }
+
+    button {
+      background: var(--secondary);
+      color: #000;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #00e676;
+      transform: scale(1.05);
+    }
+
+    table {
+      width: 100%;
+      margin-top: 1.5rem;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 0.8rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    th {
+      background: var(--primary);
+    }
+
+    #ganttChart {
+      display: flex;
+      margin-top: 2rem;
+      gap: 5px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .bar {
+      height: 30px;
+      border-radius: 5px;
+      text-align: center;
+      line-height: 30px;
+      color: #000;
+      font-weight: bold;
+      min-width: 40px;
+      background: var(--secondary);
+      box-shadow: 0 0 10px rgba(0,255,127,0.6);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1> Smart CPU Scheduling Visualizer</h1>
+  </header>
+
+  <div class="container">
+    <div class="inputs">
+      <label>Process Name <input id="pname" placeholder="P1" /></label>
+      <label>Arrival Time <input id="arrival" type="number" min="0" /></label>
+      <label>Burst Time <input id="burst" type="number" min="1" /></label>
+      <label>Priority <input id="priority" type="number" min="1" /></label>
+      <button onclick="addProcess()">Add Process</button>
+    </div>
+
+    <table id="processTable">
+      <thead>
+        <tr>
+          <th>Process</th>
+          <th>Arrival</th>
+          <th>Burst</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div style="margin-top:1rem;">
+      <select id="algorithm">
+        <option value="fcfs">FCFS</option>
+        <option value="sjf">SJF</option>
+        <option value="srtf">SRTF</option>
+        <option value="rr">Round Robin</option>
+        <option value="priority">Priority</option>
+      </select>
+      <input id="quantum" type="number" min="1" placeholder="Time Quantum (RR)" />
+      <button onclick="runScheduling()">Run Scheduling</button>
+      <button onclick="smartSuggest()">Smart Suggestion </button>
+    </div>
+
+    <div id="ganttChart"></div>
+
+    <table id="resultTable">
+      <thead>
+        <tr>
+          <th>Process</th>
+          <th>Completion</th>
+          <th>Turnaround</th>
+          <th>Waiting</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div id="summary" style="margin-top:1rem;text-align:center;font-weight:bold;"></div>
+  </div>
+
+  <footer>© 2025 Smart CPU Scheduling Visualizer | Developed by Harshit Khanna</footer>
+
+  <script>
+    let processes = [];
+
+    function addProcess() {
+      const pname = document.getElementById('pname').value.trim();
+      const arrival = parseInt(document.getElementById('arrival').value);
+      const burst = parseInt(document.getElementById('burst').value);
+      const priority = parseInt(document.getElementById('priority').value);
+      if (!pname || isNaN(arrival) || isNaN(burst)) return alert('Please fill all fields');
+      processes.push({ pname, arrival, burst, priority });
+      displayProcesses();
+      document.getElementById('pname').value = '';
+      document.getElementById('arrival').value = '';
+      document.getElementById('burst').value = '';
+      document.getElementById('priority').value = '';
+    }
+
+    function displayProcesses() {
+      const tbody = document.querySelector('#processTable tbody');
+      tbody.innerHTML = processes.map(p => `<tr><td>${p.pname}</td><td>${p.arrival}</td><td>${p.burst}</td><td>${p.priority||'-'}</td></tr>`).join('');
+    }
+
+    function runScheduling() {
+      if (!processes.length) return alert('Add processes first!');
+      const algo = document.getElementById('algorithm').value;
+      const quantum = parseInt(document.getElementById('quantum').value);
+      let result;
+      switch(algo) {
+        case 'fcfs': result = fcfs(); break;
+        case 'sjf': result = sjf(); break;
+        case 'srtf': result = srtf(); break;
+        case 'rr': result = rr(quantum); break;
+        case 'priority': result = prioritySchedule(); break;
+      }
+      displayResult(result);
+    }
+
+    function fcfs() {
+      let t = 0, res = [];
+      const sorted = [...processes].sort((a,b)=>a.arrival-b.arrival);
+      for (let p of sorted) {
+        if (t < p.arrival) t = p.arrival;
+        let start = t;
+        t += p.burst;
+        res.push({p:p.pname, start, end:t});
+      }
+      return computeMetrics(res);
+    }
+
+    function sjf() {
+      let t=0, completed=[], pending=[...processes];
+      pending.sort((a,b)=>a.arrival-b.arrival);
+      while(pending.length){
+        let available = pending.filter(p=>p.arrival<=t);
+        if(!available.length){t++;continue;}
+        available.sort((a,b)=>a.burst-b.burst);
+        let p = available[0];
+        pending.splice(pending.indexOf(p),1);
+        let start = t;
+        t += p.burst;
+        completed.push({p:p.pname,start,end:t});
+      }
+      return computeMetrics(completed);
+    }
+
+    function srtf() {
+      let t=0, completed=[], pending=[...processes.map(p=>({...p, remaining:p.burst}))];
+      while(pending.length){
+        let available = pending.filter(p=>p.arrival<=t);
+        if(!available.length){t++;continue;}
+        available.sort((a,b)=>a.remaining-b.remaining);
+        let current = available[0];
+        current.remaining--;
+        if(!completed.length || completed[completed.length-1].p!==current.pname)
+          completed.push({p:current.pname,start:t});
+        t++;
+        if(current.remaining===0){
+          current.end=t;
+          pending.splice(pending.indexOf(current),1);
+          completed[completed.length-1].end=t;
+        }
+      }
+      return computeMetrics(completed);
+    }
+
+    function rr(q) {
+      let queue=[...processes.map(p=>({...p, remaining:p.burst}))].sort((a,b)=>a.arrival-b.arrival);
+      let t=queue[0].arrival, completed=[];
+      while(queue.length){
+        let p=queue.shift();
+        if(t<p.arrival) t=p.arrival;
+        let exec=Math.min(q,p.remaining);
+        let start=t; t+=exec; p.remaining-=exec;
+        completed.push({p:p.pname,start,end:t});
+        if(p.remaining>0) queue.push(p);
+      }
+      return computeMetrics(completed);
+    }
+
+    function prioritySchedule() {
+      let t=0, completed=[], pending=[...processes];
+      while(pending.length){
+        let available=pending.filter(p=>p.arrival<=t);
+        if(!available.length){t++;continue;}
+        available.sort((a,b)=>a.priority-b.priority);
+        let p=available[0];
+        pending.splice(pending.indexOf(p),1);
+        let start=t; t+=p.burst;
+        completed.push({p:p.pname,start,end:t});
+      }
+      return computeMetrics(completed);
+    }
+
+    function computeMetrics(gantt){
+      const map={};
+      gantt.forEach(seg=>{
+        if(!map[seg.p]) map[seg.p]={start:seg.start,end:seg.end};
+        else map[seg.p].end=seg.end;
+      });
+      const results=[];
+      for(let p of processes){
+        let g=map[p.pname];
+        let completion=g.end;
+        let turnaround=completion-p.arrival;
+        let waiting=turnaround-p.burst;
+        results.push({p:p.pname,completion,turnaround,waiting});
+      }
+      return {gantt,results};
+    }
+
+    function displayResult({gantt,results}){
+      const ganttDiv=document.getElementById('ganttChart');
+      ganttDiv.innerHTML='';
+      gantt.forEach(seg=>{
+        const div=document.createElement('div');
+        div.className='bar';
+        div.textContent=seg.p;
+        ganttDiv.appendChild(div);
+      });
+      const tbody=document.querySelector('#resultTable tbody');
+      tbody.innerHTML=results.map(r=>`<tr><td>${r.p}</td><td>${r.completion}</td><td>${r.turnaround}</td><td>${r.waiting}</td></tr>`).join('');
+      const avgW=(results.reduce((a,b)=>a+b.waiting,0)/results.length).toFixed(2);
+      const avgT=(results.reduce((a,b)=>a+b.turnaround,0)/results.length).toFixed(2);
+      document.getElementById('summary').innerHTML=`Avg Waiting: ${avgW} | Avg Turnaround: ${avgT}`;
+    }
+
+    function smartSuggest(){
+      const algos=['fcfs','sjf','srtf','rr','priority'];
+      let best={algo:'',avgW:Infinity};
+      for(let a of algos){
+        let q=a==='rr'?2:0; // default quantum
+        let res;
+        try{switch(a){
+          case 'fcfs':res=fcfs();break;
+          case 'sjf':res=sjf();break;
+          case 'srtf':res=srtf();break;
+          case 'rr':res=rr(q);break;
+          case 'priority':res=prioritySchedule();break;
+        }}catch(e){continue;}
+        let avgW=res.results.reduce((x,y)=>x+y.waiting,0)/res.results.length;
+        if(avgW<best.avgW) best={algo:a,avgW};
+      }
+      alert(`Smart Suggestion: Best Algorithm = ${best.algo.toUpperCase()} (Avg Waiting: ${best.avgW.toFixed(2)})`);
+    }
+  </script>
+</body>
+</html>
