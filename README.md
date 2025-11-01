@@ -53,15 +53,6 @@ The smart suggestion feature automatically analyzes the entered processes and su
 
 ---
 
-## Future Improvements
-
-Add save/load feature for processes
-Include additional algorithms like Multilevel Queue Scheduling
-Make UI more responsive for mobile view
-Add better animations for visualization
-
----
-
 ## Developed By
 
 Harshit Khanna
